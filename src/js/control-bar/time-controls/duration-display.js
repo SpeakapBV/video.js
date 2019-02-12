@@ -1,75 +1,92 @@
 /**
  * @file duration-display.js
  */
+import TimeDisplay from './time-display';
 import Component from '../../component.js';
-import * as Dom from '../../utils/dom.js';
-import formatTime from '../../utils/format-time.js';
 
 /**
  * Displays the duration
  *
- * @param {Player|Object} player
- * @param {Object=} options
  * @extends Component
- * @class DurationDisplay
  */
-class DurationDisplay extends Component {
+class DurationDisplay extends TimeDisplay {
 
+  /**
+   * Creates an instance of this class.
+   *
+   * @param {Player} player
+   *        The `Player` that this class should be attached to.
+   *
+   * @param {Object} [options]
+   *        The key/value store of player options.
+   */
   constructor(player, options) {
     super(player, options);
 
+    // we do not want to/need to throttle duration changes,
+    // as they should always display the changed duration as
+    // it has changed
     this.on(player, 'durationchange', this.updateContent);
 
-    // Also listen for timeupdate and loadedmetadata because removing those
+    // Listen to loadstart because the player duration is reset when a new media element is loaded,
+    // but the durationchange on the user agent will not fire.
+    // @see [Spec]{@link https://www.w3.org/TR/2011/WD-html5-20110113/video.html#media-element-load-algorithm}
+    this.on(player, 'loadstart', this.updateContent);
+
+    // Also listen for timeupdate (in the parent) and loadedmetadata because removing those
     // listeners could have broken dependent applications/libraries. These
-    // can likely be removed for 6.0.
-    this.on(player, 'timeupdate', this.updateContent);
-    this.on(player, 'loadedmetadata', this.updateContent);
+    // can likely be removed for 7.0.
+    this.on(player, 'loadedmetadata', this.throttledUpdateContent);
   }
 
   /**
-   * Create the component's DOM element
+   * Builds the default DOM `className`.
    *
-   * @return {Element}
-   * @method createEl
+   * @return {string}
+   *         The DOM `className` for this object.
    */
-  createEl() {
-    const el = super.createEl('div', {
-      className: 'vjs-duration vjs-time-control vjs-control'
-    });
-
-    this.contentEl_ = Dom.createEl('div', {
-      className: 'vjs-duration-display',
-      // label the duration time for screen reader users
-      innerHTML: `<span class="vjs-control-text">${this.localize('Duration Time')}</span> 0:00`
-    }, {
-      // tell screen readers not to automatically read the time as it changes
-      'aria-live': 'off'
-    });
-
-    el.appendChild(this.contentEl_);
-    return el;
+  buildCSSClass() {
+    return 'vjs-duration';
   }
 
   /**
-   * Update duration time display
+   * Update duration time display.
    *
-   * @method updateContent
+   * @param {EventTarget~Event} [event]
+   *        The `durationchange`, `timeupdate`, or `loadedmetadata` event that caused
+   *        this function to be called.
+   *
+   * @listens Player#durationchange
+   * @listens Player#timeupdate
+   * @listens Player#loadedmetadata
    */
-  updateContent() {
+  updateContent(event) {
     const duration = this.player_.duration();
 
-    if (duration && this.duration_ !== duration) {
+    if (this.duration_ !== duration) {
       this.duration_ = duration;
-      const localizedText = this.localize('Duration Time');
-      const formattedTime = formatTime(duration);
-
-      // label the duration time for screen reader users
-      this.contentEl_.innerHTML = `<span class="vjs-control-text">${localizedText}</span> ${formattedTime}`;
+      this.updateFormattedTime_(duration);
     }
   }
-
 }
+
+/**
+ * The text that is added to the `DurationDisplay` for screen reader users.
+ *
+ * @type {string}
+ * @private
+ */
+DurationDisplay.prototype.labelText_ = 'Duration';
+
+/**
+ * The text that should display over the `DurationDisplay`s controls. Added to for localization.
+ *
+ * @type {string}
+ * @private
+ *
+ * @deprecated in v7; controlText_ is not used in non-active display Components
+ */
+DurationDisplay.prototype.controlText_ = 'Duration';
 
 Component.registerComponent('DurationDisplay', DurationDisplay);
 export default DurationDisplay;

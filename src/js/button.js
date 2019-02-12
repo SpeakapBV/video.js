@@ -4,54 +4,45 @@
 import ClickableComponent from './clickable-component.js';
 import Component from './component';
 import log from './utils/log.js';
-import assign from 'object.assign';
+import {assign} from './utils/obj';
+import keycode from 'keycode';
 
 /**
- * Base class for all buttons
+ * Base class for all buttons.
  *
- * @param {Object} player  Main Player
- * @param {Object=} options Object of option names and values
  * @extends ClickableComponent
- * @class Button
  */
 class Button extends ClickableComponent {
 
   /**
-   * Create the component's DOM element
+   * Create the `Button`s DOM element.
    *
-   * @param {String=} type Element's node type. e.g. 'div'
-   * @param {Object=} props An object of properties that should be set on the element
-   * @param {Object=} attributes An object of attributes that should be set on the element
+   * @param {string} [tag="button"]
+   *        The element's node type. This argument is IGNORED: no matter what
+   *        is passed, it will always create a `button` element.
+   *
+   * @param {Object} [props={}]
+   *        An object of properties that should be set on the element.
+   *
+   * @param {Object} [attributes={}]
+   *        An object of attributes that should be set on the element.
+   *
    * @return {Element}
-   * @method createEl
+   *         The element that gets created.
    */
-  createEl(tag = 'button', props = {}, attributes = {}) {
+  createEl(tag, props = {}, attributes = {}) {
+    tag = 'button';
+
     props = assign({
+      innerHTML: '<span aria-hidden="true" class="vjs-icon-placeholder"></span>',
       className: this.buildCSSClass()
     }, props);
-
-    if (tag !== 'button') {
-      log.warn(`Creating a Button with an HTML element of ${tag} is deprecated; use ClickableComponent instead.`);
-
-      // Add properties for clickable element which is not a native HTML button
-      props = assign({
-        tabIndex: 0
-      }, props);
-
-      // Add ARIA attributes for clickable element which is not a native HTML button
-      attributes = assign({
-        role: 'button'
-      }, attributes);
-    }
 
     // Add attributes for button element
     attributes = assign({
 
       // Necessary since the default button type is "submit"
-      'type': 'button',
-
-      // let the screen reader user know that the text of the button may change
-      'aria-live': 'polite'
+      type: 'button'
     }, attributes);
 
     const el = Component.prototype.createEl.call(this, tag, props, attributes);
@@ -62,13 +53,20 @@ class Button extends ClickableComponent {
   }
 
   /**
-   * Adds a child component inside this button
+   * Add a child `Component` inside of this `Button`.
    *
-   * @param {String|Component} child The class name or instance of a child to add
-   * @param {Object=} options Options, including options to be passed to children of the child.
-   * @return {Component} The child component (created by this process if a string was used)
-   * @deprecated
-   * @method addChild
+   * @param {string|Component} child
+   *        The name or instance of a child to add.
+   *
+   * @param {Object} [options={}]
+   *        The key/value store of options that will get passed to children of
+   *        the child.
+   *
+   * @return {Component}
+   *         The `Component` that gets added as a child. When using a string the
+   *         `Component` will get created by this process.
+   *
+   * @deprecated since version 5
    */
   addChild(child, options = {}) {
     const className = this.constructor.name;
@@ -80,10 +78,8 @@ class Button extends ClickableComponent {
   }
 
   /**
-   * Enable the button element
-   *
-   * @return {Component}
-   * @method enable
+   * Enable the `Button` element so that it can be activated or clicked. Use this with
+   * {@link Button#disable}.
    */
   enable() {
     super.enable();
@@ -91,10 +87,8 @@ class Button extends ClickableComponent {
   }
 
   /**
-   * Disable the button element
-   *
-   * @return {Component}
-   * @method disable
+   * Disable the `Button` element so that it cannot be activated or clicked. Use this with
+   * {@link Button#enable}.
    */
   disable() {
     super.disable();
@@ -102,19 +96,21 @@ class Button extends ClickableComponent {
   }
 
   /**
-   * Handle KeyPress (document level) - Extend with specific functionality for button
+   * This gets called when a `Button` has focus and `keydown` is triggered via a key
+   * press.
    *
-   * @method handleKeyPress
+   * @param {EventTarget~Event} event
+   *        The event that caused this function to get called.
+   *
+   * @listens keydown
    */
   handleKeyPress(event) {
+    // Ignore Space or Enter key operation, which is handled by the browser for a button.
+    if (!(keycode.isEventKey(event, 'Space') || keycode.isEventKey(event, 'Enter'))) {
 
-    // Ignore Space (32) or Enter (13) key operation, which is handled by the browser for a button.
-    if (event.which === 32 || event.which === 13) {
-      return;
+      // Pass keypress handling up for unsupported keys
+      super.handleKeyPress(event);
     }
-
-    // Pass keypress handling up for unsupported keys
-    super.handleKeyPress(event);
   }
 }
 
